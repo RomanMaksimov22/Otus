@@ -69,3 +69,28 @@ root@otus-nfsc:/mnt/upload# ls
 
 root@otus-nfss:~# ls /srv/share/upload/
 1.file
+
+
+
+=============================================================================
+
+root@otus-nfss:~# cat ./script.sh
+#!/bin/bash
+apt install nfs-kernel-server
+mkdir -p /srv/share/upload
+chown -R nobody:nogroup /srv/share/
+chmod 0777 /srv/share/upload
+cat << EOF > /etc/exports
+/srv/share 192.168.56.103/32(rw,sync,root_squash)
+EOF
+exportfs -r
+exportfs -s
+
+#!/bin/bash
+root@otus-nfsc:~# cat ./script.sh
+apt install nfs-common
+echo "192.168.56.102:/srv/share/ /mnt nfs vers=3,noauto,x-systemd.automount 0 0" >> /etc/fstab
+systemctl daemon-reload
+systemctl restart remote-fs.target
+cd /mnt
+mount | grep mnt
