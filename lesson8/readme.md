@@ -55,6 +55,7 @@ root@otus-nfss:~# vgs
 root@otus-nfss:~# vgrename ubuntu-vg ubuntu-otus
   Volume group "ubuntu-vg" successfully renamed to "ubuntu-otus"
 root@otus-nfss:~# vim /boot/grub/grub.cfg
+root@otus-nfss:~# reboot
 root@otus-nfss:~# vgs
   VG          #PV #LV #SN Attr   VSize   VFree
   ubuntu-otus   1   1   0 wz--n- <23.00g 11.50g
