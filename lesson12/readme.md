@@ -1,3 +1,7 @@
+htop:
+<img width="1891" height="178" alt="image" src="https://github.com/user-attachments/assets/5bc8a9ad-3ca7-4f96-98ac-1b502015db9a" />
+
+
 #!/bin/bash
 # Функция для CPU-интенсивной задачи
 cpu_task() {
@@ -82,7 +86,6 @@ PID низкого приоритета: 1629
 Время запуска низкоприоритетного процесса: .004675215 секунд
 
 
-htop:
-<img width="1891" height="178" alt="image" src="https://github.com/user-attachments/assets/5bc8a9ad-3ca7-4f96-98ac-1b502015db9a" />
+
 
 
