@@ -81,8 +81,6 @@ PID низкого приоритета: 1629
 Время запуска высокоприоритетного процесса: .009379181 секунд
 Время запуска низкоприоритетного процесса: .004675215 секунд
 
+<img width="1891" height="178" alt="image" src="https://github.com/user-attachments/assets/5bc8a9ad-3ca7-4f96-98ac-1b502015db9a" />
 
 
-
-
-<img width="1891" height="178" alt="image" src="https://github.com/user-attachments/assets/864017d7-c11f-4975-a21a-dcd3f0296c41" />
