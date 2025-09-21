@@ -5,3 +5,7 @@ COPY index.html /usr/share/nginx/html/index.html
 COPY default.conf /etc/nginx/conf.d/default.conf
 
 RUN rm -f /etc/nginx/conf.d/http-default_server.conf || true
+
+CMD ["nginx", "-g", "daemon off;"]
+
+EXPOSE 80
