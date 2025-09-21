@@ -4,7 +4,14 @@ docker run -d -p 8080:80 --name nginx-custom my-nginx:custom
 curl localhost:8080
 
 
+
 ++++++++++++++++++++++++++++++++++++++
+
+https://hub.docker.com/repository/docker/mrswd/my-nginx/general
+
+docker pull mrswd/my-nginx:custom
+docker run -d -p 8080:80 mrswd/my-nginx:custom
+
 
 Определите разницу между контейнером и образом
 Образ это "пакет" с помощью которого собирается контейнер. Контейнер это набор компонентов, работающих в образе
