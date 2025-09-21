@@ -1,14 +1,7 @@
-# Используем официальный образ Nginx на базе Alpine
 FROM nginx:alpine
 
-# Устанавливаем рабочую директорию внутри контейнера
-WORKDIR /usr/share/nginx/html
-
-# Копируем кастомный HTML файл на место дефолтной страницы
 COPY index.html /usr/share/nginx/html/index.html
 
-# Открываем порт 80
-EXPOSE 80
+COPY default.conf /etc/nginx/conf.d/default.conf
 
-# Запускаем nginx в форground режиме
-CMD ["nginx", "-g", "daemon off;"]
+RUN rm -f /etc/nginx/conf.d/http-default_server.conf || true
