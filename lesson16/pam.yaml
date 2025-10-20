@@ -9,7 +9,6 @@
       - name: otus
         password: "Otus2022!"
     admin_group: admin
-    pam_sshd_file: /etc/pam.d/sshd
 
   tasks:     
     - name: Создание пользователей
