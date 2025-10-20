@@ -11,17 +11,7 @@
     admin_group: admin
     pam_sshd_file: /etc/pam.d/sshd
 
-  tasks:
-    - name: Установить python3-pip
-      apt:
-        name: python3-pip
-        state: present
-        update_cache: yes
-
-    - name: Установить passlib
-      pip:
-        name: passlib
-        
+  tasks:     
     - name: Создание пользователей
       ansible.builtin.user:
         name: "{{ item.name }}"
