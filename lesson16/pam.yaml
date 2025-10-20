@@ -1,0 +1,49 @@
+---
+- name: Настройка PAM
+  hosts: all
+  become: true
+  vars:
+    users:
+      - name: otusadm
+        password: "Otus2022!"
+      - name: otus
+        password: "Otus2022!"
+    admin_group: admin
+    pam_sshd_file: /etc/pam.d/sshd
+
+  tasks:
+
+    - name: Создание пользователей
+      ansible.builtin.user:
+        name: "{{ item.name }}"
+        password: "{{ item.password | password_hash('sha512') }}"
+      loop: "{{ users }}"
+
+    - name: Создание групп
+      ansible.builtin.group:
+        name: "{{ admin_group }}"
+        state: present
+
+    - name: Add users to admin group
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: "{{ admin_group }}"
+        append: yes
+      loop:
+        - otusadm
+        - root
+
+
+    - name: Копирование скрипта
+      ansible.builtin.copy:
+        src: ./files/login.sh
+        dest: /usr/local/bin/login.sh
+        mode: '0755'
+
+    - name: Копирование конфига
+       ansible.builtin.copy:
+        src: files/sshd
+        dest: /etc/pam.d/sshd
+        owner: root
+        group: root
+        mode: '0644'
