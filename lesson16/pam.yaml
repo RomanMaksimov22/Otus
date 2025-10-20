@@ -41,7 +41,7 @@
         mode: '0755'
 
     - name: Копирование конфига
-       ansible.builtin.copy:
+      ansible.builtin.copy:
         src: files/sshd
         dest: /etc/pam.d/sshd
         owner: root
