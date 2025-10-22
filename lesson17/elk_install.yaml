@@ -1,0 +1,151 @@
+---
+- name: Установка и настройка ELK 
+  hosts: all
+  become: yes
+
+  vars:
+    elastic_version: "8.15.2"
+    elastic_password: "ElasticPass123!"
+    kibana_password: "KibanaPass123!"
+    logstash_index: "syslog-%{+YYYY.MM.dd}"
+
+  tasks:
+
+  - name: Установить зависимости
+    apt:
+      name:
+        - apt-transport-https
+        - curl
+        - gnupg
+        - lsb-release
+        - unzip
+      state: present
+      update_cache: yes
+
+  - name: Добавить репозиторий Elastic
+    ansible.builtin.shell: |
+      curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --dearmor -o /usr/share/keyrings/elastic-archive-keyring.gpg
+      echo "deb [signed-by=/usr/share/keyrings/elastic-archive-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main" > /etc/apt/sources.list.d/elastic-8.x.list
+    args:
+      creates: /etc/apt/sources.list.d/elastic-8.x.list
+
+  - name: Установить Elasticsearch, Kibana и Logstash
+    apt:
+      name:
+        - elasticsearch
+        - kibana
+        - logstash
+      state: present
+      update_cache: yes
+
+  - name: Настроить elasticsearch.yml
+    copy:
+      dest: /etc/elasticsearch/elasticsearch.yml
+      content: |
+        cluster.name: "elk-cluster"
+        node.name: "elk-node-1"
+        network.host: 0.0.0.0
+        http.port: 9200
+        discovery.type: single-node
+        xpack.security.enabled: true
+        xpack.security.http.ssl.enabled: false
+
+  - name: Включить и запустить Elasticsearch
+    systemd:
+      name: elasticsearch
+      enabled: true
+      state: started
+
+  - name: Ждать поднятия Elasticsearch
+    uri:
+      url: http://localhost:9200
+      status_code: 200
+    register: es_status
+    retries: 15
+    delay: 10
+    until: es_status.status == 200
+
+  - name: Установить пароль для пользователя elastic
+    command: >
+      /usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic -b -s
+    register: elastic_reset
+    changed_when: false
+
+  - name: Сохранить новый пароль elastic
+    set_fact:
+      elastic_password: "{{ elastic_reset.stdout_lines[-1].split()[-1] }}"
+
+  - name: Создать пользователя Kibana
+    uri:
+      url: "http://localhost:9200/_security/user/kibana_system_user"
+      method: POST
+      user: elastic
+      password: "{{ elastic_password }}"
+      body_format: json
+      body:
+        password: "{{ kibana_password }}"
+        roles: ["kibana_system"]
+        full_name: "Kibana System User"
+      status_code: [200, 201]
+
+  - name: Настроить kibana.yml
+    copy:
+      dest: /etc/kibana/kibana.yml
+      content: |
+        server.host: "0.0.0.0"
+        elasticsearch.hosts: ["http://localhost:9200"]
+        elasticsearch.username: "kibana_system_user"
+        elasticsearch.password: "{{ kibana_password }}"
+
+  - name: Включить и запустить Kibana
+    systemd:
+      name: kibana
+      enabled: true
+      state: started
+
+  - name: Настроить logstash.conf
+    copy:
+      dest: /etc/logstash/conf.d/syslog.conf
+      content: |
+        input {
+          file {
+            path => "/var/log/syslog"
+            start_position => "beginning"
+            sincedb_path => "/dev/null"
+          }
+        }
+
+        filter {
+          grok {
+            match => { "message" => "%{SYSLOGBASE} %{GREEDYDATA:syslog_message}" }
+          }
+        }
+
+        output {
+          elasticsearch {
+            hosts => ["http://localhost:9200"]
+            user => "elastic"
+            password => "{{ elastic_password }}"
+            index => "{{ logstash_index }}"
+          }
+          stdout { codec => rubydebug }
+        }
+
+  - name: Проверить конфигурацию Logstash
+    command: /usr/share/logstash/bin/logstash --config.test_and_exit -f /etc/logstash/conf.d/syslog.conf
+    register: logstash_conf
+    failed_when: "'Configuration OK' not in logstash_conf.stdout"
+
+  - name: Включить и запустить Logstash
+    systemd:
+      name: logstash
+      enabled: true
+      state: started
+
+  - name: Вывести пароль для входа в Elasticsearch
+    debug:
+      msg: "Пароль пользователя elastic: {{ elastic_password }}"
+
+  - name: Вывести URL для Kibana
+    debug:
+      msg: "Kibana доступна по адресу: http://{{ ansible_default_ipv4.address }}:5601"
