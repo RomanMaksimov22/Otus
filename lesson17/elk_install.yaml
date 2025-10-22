@@ -61,15 +61,6 @@
       enabled: true
       state: started
 
-  - name: Ждать поднятия Elasticsearch
-    uri:
-      url: http://localhost:9200
-      status_code: 200
-    register: es_status
-    retries: 15
-    delay: 10
-    until: es_status.status == 200
-
   - name: Установить пароль для пользователя elastic
     command: >
       /usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic -b -s
@@ -79,6 +70,18 @@
   - name: Сохранить новый пароль elastic
     set_fact:
       elastic_password: "{{ elastic_reset.stdout_lines[-1].split()[-1] }}"
+
+  - name: Ждать поднятия Elasticsearch
+  uri:
+    url: "http://localhost:9200"
+    user: "elastic"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: es_status
+  retries: 15
+  delay: 10
+  until: es_status.status == 200
 
   - name: Создать пользователя Kibana
     uri:
