@@ -1,13 +1,11 @@
 ---
-- name: Установка и настройка ELK 
+- name: Установка и настройка ELK для одиночной ноды
   hosts: all
   become: yes
 
   vars:
-    elastic_version: "8.15.2"
-    elastic_password: "ElasticPass123!"
-    kibana_password: "KibanaPass123!"
-    logstash_index: "syslog-%{+YYYY.MM.dd}"
+    elastic_version: "8.x"
+    kibana_index: "syslog-%{+YYYY.MM.dd}"
 
   tasks:
 
@@ -25,7 +23,7 @@
   - name: Добавить репозиторий Elastic
     ansible.builtin.shell: |
       curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | gpg --dearmor -o /usr/share/keyrings/elastic-archive-keyring.gpg
-      echo "deb [signed-by=/usr/share/keyrings/elastic-archive-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main" > /etc/apt/sources.list.d/elastic-8.x.list
+      echo "deb [signed-by=/usr/share/keyrings/elastic-archive-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main" | tee /etc/apt/sources.list.d/elastic-8.x.list
     args:
       creates: /etc/apt/sources.list.d/elastic-8.x.list
 
@@ -48,12 +46,23 @@
         path.logs: /var/log/elasticsearch
 
         network.host: 0.0.0.0
+        transport.host: 0.0.0.0
         discovery.type: single-node
 
         xpack.security.enabled: true
         xpack.security.enrollment.enabled: true
         xpack.security.transport.ssl.enabled: false
-        xpack.security.http.ssl.enabled: false        
+        xpack.security.http.ssl.enabled: false
+
+  - name: Исправить права каталогов Elasticsearch
+    file:
+      path: "{{ item }}"
+      owner: elasticsearch
+      group: elasticsearch
+      recurse: yes
+    loop:
+      - /var/lib/elasticsearch
+      - /var/log/elasticsearch
 
   - name: Включить и запустить Elasticsearch
     systemd:
@@ -61,49 +70,27 @@
       enabled: true
       state: started
 
-  - name: Установить пароль для пользователя elastic
-    command: >
-      /usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic -b -s
-    register: elastic_reset
-    changed_when: false
-
-  - name: Сохранить новый пароль elastic
-    set_fact:
-      elastic_password: "{{ elastic_reset.stdout_lines[-1].split()[-1] }}"
-
-  - name: Ждать поднятия Elasticsearch
+  - name: Ждать пока Elasticsearch станет доступен
     uri:
-      url: "http://localhost:9200"
-      user: "elastic"
-      password: "{{ elastic_password }}"
-      force_basic_auth: yes
+      url: "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=120s"
       status_code: 200
     register: es_status
-    retries: 15
+    retries: 12
     delay: 10
     until: es_status.status == 200
 
-  - name: Создать пользователя Kibana
-    uri:
-      url: "http://localhost:9200/_security/user/kibana_system_user"
-      method: POST
-      user: elastic
-      password: "{{ elastic_password }}"
-      body_format: json
-      body:
-        password: "{{ kibana_password }}"
-        roles: ["kibana_system"]
-        full_name: "Kibana System User"
-      status_code: [200, 201]
+  - name: Создать enrollment token для Kibana
+    command: /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana
+    register: kibana_token
+    changed_when: false
 
-  - name: Настроить kibana.yml
+  - name: Настроить kibana.yml с enrollment token
     copy:
       dest: /etc/kibana/kibana.yml
       content: |
         server.host: "0.0.0.0"
         elasticsearch.hosts: ["http://localhost:9200"]
-        elasticsearch.username: "kibana_system_user"
-        elasticsearch.password: "{{ kibana_password }}"
+        elasticsearch.enrollment_token: "{{ kibana_token.stdout_lines[0] }}"
 
   - name: Включить и запустить Kibana
     systemd:
@@ -133,8 +120,8 @@
           elasticsearch {
             hosts => ["http://localhost:9200"]
             user => "elastic"
-            password => "{{ elastic_password }}"
-            index => "{{ logstash_index }}"
+            password => "changeme"  # при одиночной ноде можно временно
+            index => "{{ kibana_index }}"
           }
           stdout { codec => rubydebug }
         }
@@ -149,10 +136,6 @@
       name: logstash
       enabled: true
       state: started
-
-  - name: Вывести пароль для входа в Elasticsearch
-    debug:
-      msg: "Пароль пользователя elastic: {{ elastic_password }}"
 
   - name: Вывести URL для Kibana
     debug:
